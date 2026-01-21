@@ -1,6 +1,9 @@
+import dotenv from "dotenv";
 import express from "express";
 import fs from "fs/promises";
 import path from "path";
+
+dotenv.config();
 
 const app = express();
 app.use(express.json({ limit: "20mb" }));

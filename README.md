@@ -16,6 +16,8 @@ cp .env.example .env
 npm start
 ```
 
+The agent loads `.env` from the `agent/` directory at startup.
+
 Environment variables:
 
 - `OPENAI_API_KEY`: OpenAI API key.
