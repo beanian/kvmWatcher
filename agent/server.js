@@ -47,7 +47,7 @@ async function saveScreenshot(base64Data) {
   return filePath;
 }
 
-async function callOpenAI({ currentImage, previousImage }) {
+async function callOpenAI({ currentImageDataUrl, previousImageDataUrl }) {
   requireEnv(OPENAI_API_KEY, "OPENAI_API_KEY");
 
   const body = {
@@ -79,7 +79,7 @@ async function callOpenAI({ currentImage, previousImage }) {
           },
           {
             type: "input_image",
-            image_base64: previousImage
+            image_url: previousImageDataUrl
           },
           {
             type: "input_text",
@@ -87,7 +87,7 @@ async function callOpenAI({ currentImage, previousImage }) {
           },
           {
             type: "input_image",
-            image_base64: currentImage
+            image_url: currentImageDataUrl
           }
         ]
       }
@@ -156,11 +156,10 @@ app.post("/upload", async (req, res) => {
       return res.json({ status: "stored_initial" });
     }
 
-    const previousImageBase64 = dataUrlToBase64(previousImageDataUrl);
     console.log("Sending screenshots to OpenAI for comparison.");
     const analysis = await callOpenAI({
-      currentImage: currentImageBase64,
-      previousImage: previousImageBase64
+      currentImageDataUrl: imageDataUrl,
+      previousImageDataUrl
     });
     console.log("OpenAI analysis result:", analysis);
 
