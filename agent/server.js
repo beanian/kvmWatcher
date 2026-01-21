@@ -57,7 +57,7 @@ async function callOpenAI({ currentImage, previousImage }) {
         role: "system",
         content: [
           {
-            type: "text",
+            type: "input_text",
             text: [
               "You analyze two consecutive screenshots from a KVM display.",
               "Detect whether there is a new Microsoft Teams message, Teams call, or Outlook email notification that just appeared.",
@@ -74,7 +74,7 @@ async function callOpenAI({ currentImage, previousImage }) {
         role: "user",
         content: [
           {
-            type: "text",
+            type: "input_text",
             text: "Previous screenshot"
           },
           {
@@ -82,7 +82,7 @@ async function callOpenAI({ currentImage, previousImage }) {
             image_base64: previousImage
           },
           {
-            type: "text",
+            type: "input_text",
             text: "Current screenshot"
           },
           {
