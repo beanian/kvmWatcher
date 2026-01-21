@@ -62,9 +62,9 @@ async function callOpenAI({ currentImageDataUrl, previousImageDataUrl }) {
               "You analyze two consecutive screenshots from a KVM display.",
               "Detect whether there is a new Microsoft Teams message, Teams call, or Outlook email notification that just appeared.",
               "Only notify for newly arrived items (not already present in the previous image).",
-              "Return a strict JSON object with keys: notify (boolean), summary (string), fingerprint (string).",
+              "Return a strict JSON object with keys: notify (boolean), summary (string), fingerprint (string), sender (string), subject (string), time (string).",
               "fingerprint should uniquely identify the new item (e.g., sender + subject + time).",
-              "If no new item, set notify=false and summary empty.",
+              "If no new item, set notify=false and summary empty and sender/subject/time empty.",
               "Do not include any extra keys or formatting."
             ].join(" ")
           }
@@ -169,6 +169,9 @@ app.post("/upload", async (req, res) => {
         source: "kvm-watcher",
         summary: analysis.summary,
         fingerprint: analysis.fingerprint,
+        sender: analysis.sender,
+        subject: analysis.subject,
+        time: analysis.time,
         timestamp: new Date().toISOString()
       });
       lastNotifiedFingerprint = analysis.fingerprint;
