@@ -118,6 +118,7 @@ app.post("/upload", async (req, res) => {
       return res.status(400).json({ error: "Missing imageDataUrl" });
     }
 
+    console.log(`Received screenshot at ${new Date().toISOString()}`);
     const currentImageBase64 = dataUrlToBase64(imageDataUrl);
     if (!previousImageDataUrl) {
       previousImageDataUrl = imageDataUrl;
@@ -131,6 +132,7 @@ app.post("/upload", async (req, res) => {
     });
 
     if (analysis.notify && analysis.fingerprint !== lastNotifiedFingerprint) {
+      console.log(`Notification triggered: ${analysis.summary}`);
       await sendWebhook({
         source: "kvm-watcher",
         summary: analysis.summary,
