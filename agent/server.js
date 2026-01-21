@@ -106,7 +106,12 @@ async function callOpenAI({ currentImage, previousImage }) {
     throw new Error("OpenAI response missing output text.");
   }
 
-  return JSON.parse(outputText);
+  console.log(`OpenAI raw response text: ${outputText}`);
+  try {
+    return JSON.parse(outputText);
+  } catch (error) {
+    throw new Error(`Failed to parse OpenAI JSON response: ${error.message}`);
+  }
 }
 
 async function sendWebhook(payload) {
@@ -149,7 +154,7 @@ app.post("/upload", async (req, res) => {
       currentImage: currentImageBase64,
       previousImage: previousImageBase64
     });
-    console.log(`OpenAI analysis result: notify=${analysis.notify} fingerprint=${analysis.fingerprint || "none"}`);
+    console.log("OpenAI analysis result:", analysis);
 
     if (analysis.notify && analysis.fingerprint !== lastNotifiedFingerprint) {
       console.log(`Notification triggered: ${analysis.summary}`);
@@ -169,6 +174,7 @@ app.post("/upload", async (req, res) => {
     previousImageDataUrl = imageDataUrl;
     return res.json({ status: "processed", notify: analysis.notify });
   } catch (error) {
+    console.error("Error handling upload:", error);
     return res.status(500).json({ error: error.message });
   }
 });
