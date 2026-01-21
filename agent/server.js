@@ -20,6 +20,11 @@ function requireEnv(value, name) {
   }
 }
 
+function validateEnvironment() {
+  requireEnv(OPENAI_API_KEY, "OPENAI_API_KEY");
+  requireEnv(HOME_ASSISTANT_WEBHOOK_URL, "HOME_ASSISTANT_WEBHOOK_URL");
+}
+
 function dataUrlToBase64(dataUrl) {
   if (!dataUrl?.startsWith("data:image/")) {
     throw new Error("Expected a data URL for an image.");
@@ -184,5 +189,11 @@ app.get("/health", (_req, res) => {
 });
 
 app.listen(PORT, () => {
+  try {
+    validateEnvironment();
+  } catch (error) {
+    console.error("Configuration error:", error.message);
+    process.exit(1);
+  }
   console.log(`kvm-watcher agent listening on http://localhost:${PORT}`);
 });
