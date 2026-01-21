@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import express from "express";
+import crypto from "crypto";
 import fs from "fs/promises";
 import path from "path";
 
@@ -15,6 +16,7 @@ const HOME_ASSISTANT_WEBHOOK_URL = process.env.HOME_ASSISTANT_WEBHOOK_URL;
 const CAPTURE_DIR = process.env.CAPTURE_DIR || "captures";
 
 let previousImageDataUrl = null;
+let previousImageFingerprint = null;
 let lastNotifiedFingerprint = null;
 
 function requireEnv(value, name) {
@@ -33,6 +35,10 @@ function dataUrlToBase64(dataUrl) {
     throw new Error("Expected a data URL for an image.");
   }
   return dataUrl.split(",")[1];
+}
+
+function hashBase64(base64Data) {
+  return crypto.createHash("sha256").update(base64Data).digest("hex");
 }
 
 function timestampForFilename() {
@@ -150,10 +156,17 @@ app.post("/upload", async (req, res) => {
     const currentImageBase64 = dataUrlToBase64(imageDataUrl);
     const savedPath = await saveScreenshot(currentImageBase64);
     console.log(`Saved screenshot to ${savedPath}`);
+    const currentImageFingerprint = hashBase64(currentImageBase64);
     if (!previousImageDataUrl) {
       previousImageDataUrl = imageDataUrl;
+      previousImageFingerprint = currentImageFingerprint;
       console.log("Stored initial screenshot; awaiting next frame for comparison.");
       return res.json({ status: "stored_initial" });
+    }
+
+    if (currentImageFingerprint === previousImageFingerprint) {
+      console.log("Skipping OpenAI; screenshot matches previous image.");
+      return res.json({ status: "unchanged" });
     }
 
     console.log("Sending screenshots to OpenAI for comparison.");
@@ -182,6 +195,7 @@ app.post("/upload", async (req, res) => {
     }
 
     previousImageDataUrl = imageDataUrl;
+    previousImageFingerprint = currentImageFingerprint;
     return res.json({ status: "processed", notify: analysis.notify });
   } catch (error) {
     console.error("Error handling upload:", error);
