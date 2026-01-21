@@ -8,5 +8,6 @@
 4. Navigate to your KVM web UI tab.
 5. Click the extension icon to mark the current tab as the capture target.
 6. Confirm the extension icon shows an **ON** badge to indicate capture is active.
+7. Click the icon again on the same tab to turn capture **off**.
 
 The extension will capture the tab every 30 seconds and POST screenshots to `http://localhost:3000/upload`.

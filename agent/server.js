@@ -1,4 +1,6 @@
 import express from "express";
+import fs from "fs/promises";
+import path from "path";
 
 const app = express();
 app.use(express.json({ limit: "20mb" }));
@@ -7,6 +9,7 @@ const PORT = Number(process.env.PORT || 3000);
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 const HOME_ASSISTANT_WEBHOOK_URL = process.env.HOME_ASSISTANT_WEBHOOK_URL;
+const CAPTURE_DIR = process.env.CAPTURE_DIR || "captures";
 
 let previousImageDataUrl = null;
 let lastNotifiedFingerprint = null;
@@ -22,6 +25,18 @@ function dataUrlToBase64(dataUrl) {
     throw new Error("Expected a data URL for an image.");
   }
   return dataUrl.split(",")[1];
+}
+
+function timestampForFilename() {
+  return new Date().toISOString().replace(/[:.]/g, "-");
+}
+
+async function saveScreenshot(base64Data) {
+  await fs.mkdir(CAPTURE_DIR, { recursive: true });
+  const filename = `${timestampForFilename()}.png`;
+  const filePath = path.join(CAPTURE_DIR, filename);
+  await fs.writeFile(filePath, Buffer.from(base64Data, "base64"));
+  return filePath;
 }
 
 async function callOpenAI({ currentImage, previousImage }) {
@@ -120,16 +135,21 @@ app.post("/upload", async (req, res) => {
 
     console.log(`Received screenshot at ${new Date().toISOString()}`);
     const currentImageBase64 = dataUrlToBase64(imageDataUrl);
+    const savedPath = await saveScreenshot(currentImageBase64);
+    console.log(`Saved screenshot to ${savedPath}`);
     if (!previousImageDataUrl) {
       previousImageDataUrl = imageDataUrl;
+      console.log("Stored initial screenshot; awaiting next frame for comparison.");
       return res.json({ status: "stored_initial" });
     }
 
     const previousImageBase64 = dataUrlToBase64(previousImageDataUrl);
+    console.log("Sending screenshots to OpenAI for comparison.");
     const analysis = await callOpenAI({
       currentImage: currentImageBase64,
       previousImage: previousImageBase64
     });
+    console.log(`OpenAI analysis result: notify=${analysis.notify} fingerprint=${analysis.fingerprint || "none"}`);
 
     if (analysis.notify && analysis.fingerprint !== lastNotifiedFingerprint) {
       console.log(`Notification triggered: ${analysis.summary}`);
@@ -140,6 +160,10 @@ app.post("/upload", async (req, res) => {
         timestamp: new Date().toISOString()
       });
       lastNotifiedFingerprint = analysis.fingerprint;
+    } else if (analysis.notify) {
+      console.log("Notification suppressed because fingerprint matches last notification.");
+    } else {
+      console.log("No new notification detected.");
     }
 
     previousImageDataUrl = imageDataUrl;

@@ -22,6 +22,7 @@ Environment variables:
 - `OPENAI_MODEL`: defaults to `gpt-4o-mini`.
 - `HOME_ASSISTANT_WEBHOOK_URL`: Home Assistant webhook endpoint.
 - `PORT`: optional, defaults to `3000`.
+- `CAPTURE_DIR`: optional, defaults to `captures` in the agent working directory.
 
 ## Chrome Extension Setup
 

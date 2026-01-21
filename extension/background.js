@@ -27,6 +27,16 @@ chrome.action.onClicked.addListener(async (tab) => {
   if (!tab?.id) {
     return;
   }
+  const { targetTabId, targetWindowId } = await chrome.storage.local.get([
+    "targetTabId",
+    "targetWindowId"
+  ]);
+  const isSameTarget = targetTabId === tab.id && targetWindowId === tab.windowId;
+  if (isSameTarget) {
+    await chrome.storage.local.remove(["targetTabId", "targetWindowId"]);
+    setActiveBadge(false);
+    return;
+  }
   await chrome.storage.local.set({
     targetTabId: tab.id,
     targetWindowId: tab.windowId
