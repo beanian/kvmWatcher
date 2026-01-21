@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 import express from "express";
 import crypto from "crypto";
+import { PNG } from "pngjs";
 import fs from "fs/promises";
 import path from "path";
 
@@ -17,6 +18,7 @@ const CAPTURE_DIR = process.env.CAPTURE_DIR || "captures";
 
 let previousImageDataUrl = null;
 let previousImageFingerprint = null;
+let previousImagePixels = null;
 let lastNotifiedFingerprint = null;
 
 function requireEnv(value, name) {
@@ -39,6 +41,45 @@ function dataUrlToBase64(dataUrl) {
 
 function hashBase64(base64Data) {
   return crypto.createHash("sha256").update(base64Data).digest("hex");
+}
+
+function decodePng(base64Data) {
+  const buffer = Buffer.from(base64Data, "base64");
+  return PNG.sync.read(buffer);
+}
+
+function hasMeaningfulChange(previousPng, currentPng) {
+  if (!previousPng || !currentPng) {
+    return true;
+  }
+  if (previousPng.width !== currentPng.width || previousPng.height !== currentPng.height) {
+    return true;
+  }
+
+  const { width, height } = currentPng;
+  const totalPixels = width * height;
+  const sampleStride = 4;
+  const pixelDiffThreshold = 20;
+  const maxDifferentRatio = 0.005;
+  const maxDifferentPixels = Math.ceil((totalPixels / sampleStride) * maxDifferentRatio);
+  let differentPixels = 0;
+
+  for (let y = 0; y < height; y += sampleStride) {
+    for (let x = 0; x < width; x += sampleStride) {
+      const idx = (width * y + x) * 4;
+      const dr = Math.abs(previousPng.data[idx] - currentPng.data[idx]);
+      const dg = Math.abs(previousPng.data[idx + 1] - currentPng.data[idx + 1]);
+      const db = Math.abs(previousPng.data[idx + 2] - currentPng.data[idx + 2]);
+      if (dr + dg + db > pixelDiffThreshold) {
+        differentPixels += 1;
+        if (differentPixels > maxDifferentPixels) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
 }
 
 function timestampForFilename() {
@@ -156,16 +197,21 @@ app.post("/upload", async (req, res) => {
     const currentImageBase64 = dataUrlToBase64(imageDataUrl);
     const savedPath = await saveScreenshot(currentImageBase64);
     console.log(`Saved screenshot to ${savedPath}`);
+    const currentImagePixels = decodePng(currentImageBase64);
     const currentImageFingerprint = hashBase64(currentImageBase64);
     if (!previousImageDataUrl) {
       previousImageDataUrl = imageDataUrl;
       previousImageFingerprint = currentImageFingerprint;
+      previousImagePixels = currentImagePixels;
       console.log("Stored initial screenshot; awaiting next frame for comparison.");
       return res.json({ status: "stored_initial" });
     }
 
-    if (currentImageFingerprint === previousImageFingerprint) {
-      console.log("Skipping OpenAI; screenshot matches previous image.");
+    if (
+      currentImageFingerprint === previousImageFingerprint ||
+      !hasMeaningfulChange(previousImagePixels, currentImagePixels)
+    ) {
+      console.log("Skipping OpenAI; screenshot change is below threshold.");
       return res.json({ status: "unchanged" });
     }
 
@@ -196,6 +242,7 @@ app.post("/upload", async (req, res) => {
 
     previousImageDataUrl = imageDataUrl;
     previousImageFingerprint = currentImageFingerprint;
+    previousImagePixels = currentImagePixels;
     return res.json({ status: "processed", notify: analysis.notify });
   } catch (error) {
     console.error("Error handling upload:", error);

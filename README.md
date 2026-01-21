@@ -26,6 +26,8 @@ Environment variables:
 - `PORT`: optional, defaults to `3000`.
 - `CAPTURE_DIR`: optional, defaults to `captures` in the agent working directory.
 
+The agent performs a lightweight local pixel comparison to ignore tiny changes like a clock tick; it only calls OpenAI when a meaningful change is detected.
+
 ## Chrome Extension Setup
 
 See `extension/README.md` for the detailed steps to load the extension in Chrome.
